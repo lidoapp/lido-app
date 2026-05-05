@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- saved from url=(0048)file:///C:/Users/Willian/Downloads/index_25.html -->
+<!-- saved from url=(0048)file:///C:/Users/Willian/Downloads/index_27.html -->
 <html lang="pt-BR"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -668,7 +668,7 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);min-height:1
   <!-- FULLSCREEN SHARE IMAGE -->
   <div class="shareimg-overlay" id="SHAREOVERLAY">
     <button class="shareimg-close" onclick="document.getElementById(&#39;SHAREOVERLAY&#39;).classList.remove(&#39;open&#39;);checkPendingAch()">×</button>
-    <img id="SHAREIMG" src="file:///C:/Users/Willian/Downloads/index_25.html">
+    <img id="SHAREIMG" src="file:///C:/Users/Willian/Downloads/index_27.html">
     <div class="shareimg-tip">pressione e segure a imagem para salvar<br>na galeria e compartilhar onde quiser</div>
   </div>
 
@@ -773,16 +773,19 @@ let star=0, filter='todos', editId=null, coverData=null, meta={goal:30};
 // AUTH
 window.signInGoogle = async () => {
   try {
-    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
     const provider = new GoogleAuthProvider();
-    if(isMobile) {
-      await signInWithRedirect(auth, provider);
-    } else {
-      await signInWithPopup(auth, provider);
-    }
+    await signInWithPopup(auth, provider);
   } catch(e) {
-    console.error('login error:', e);
-    toast('erro ao entrar — tente abrir o link direto no Safari ou Chrome');
+    if(e.code === 'auth/popup-blocked' || e.code === 'auth/cancelled-popup-request') {
+      // Fallback to redirect if popup is blocked
+      try {
+        await signInWithRedirect(auth, new GoogleAuthProvider());
+      } catch(e2) {
+        toast('erro ao entrar — abra pelo Safari ou Chrome');
+      }
+    } else if(e.code !== 'auth/popup-closed-by-user') {
+      toast('erro ao entrar — abra pelo Safari ou Chrome');
+    }
   }
 };
 window.signOutUser = async () => {
@@ -793,15 +796,9 @@ window.signOutUser = async () => {
 // Check public view first
 checkPublicView().then(isPub => { if(isPub) return; });
 
-// Handle redirect result from Google login
-getRedirectResult(auth).then(result => {
-  if(result && result.user) {
-    // User signed in via redirect - auth state change will handle the rest
-  }
-}).catch(e => {
-  if(e.code !== 'auth/no-current-user') {
-    console.error('redirect result error:', e);
-  }
+// Handle redirect result from Google login (fallback)
+getRedirectResult(auth).catch(e => {
+  console.log('redirect result:', e?.code);
 });
 
 onAuthStateChanged(auth, u => {
@@ -811,7 +808,11 @@ onAuthStateChanged(auth, u => {
     user=u;
     document.getElementById('LG').style.display='none';
     document.getElementById('APP').style.display='block';
-    setupUser(u); subBooks(); subMeta(); saveUserProfile(u); setTimeout(checkInstallBanner, 1000);
+    setupUser(u); 
+    saveUserProfile(u);
+    setTimeout(checkInstallBanner, 1000);
+    subMeta();
+    subBooks();
   } else {
     user=null; books=[];
     document.getElementById('APP').style.display='none';
